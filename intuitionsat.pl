@@ -4,6 +4,7 @@
 # in a given Kripke frame.  (Work in progress.)
 
 # Command line arguments are:
+# -k <frame file>: the frame to use
 # -f <formula>: the formula to test
 # -v: verbose
 # -q: quiet (suppress all output)
@@ -27,35 +28,84 @@ use constant {
     LOGICAL_NOT => 6
 };
 
+use Regexp::Grammars;
+
 binmode STDIN, ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
 @ARGV = map { decode_utf8($_, 1) } @ARGV;
 my %opts;
-getopts("f:vqS:", \%opts);
+getopts("k:f:vqS:", \%opts);
 
 my $verbose = $opts{v};
 my $quiet = $opts{q};
 my $outsatfilename = $opts{S};
 
-## THIS IS THE FRAME:
+## PARSING THE FRAME:
 
-my $nbnodes = 5;
-my @node_names = ( "u0", "u1", "u2", "u3", "u4" );
-my @frame_edges = (
-    [0,1], [0,2], [2,3], [2,4]
-);
+my $nbnodes = 0;
+my @node_names;
+my %node_nums;
+my @frame_edges;
 
-# my $nbnodes = 4;
-# my @node_names = ( "u0", "u1", "u2", "u3" );
-# my @frame_edges = (
-#     [0,1], [0,2], [0,3], [2,4]
-# );
+my $frame_parser = qr{
+   ^<Frame>$
+   <rule: Frame>	digraph [a-zA-Z][a-zA-Z0-9\_]* \{ <Edgelist> \} | <Edgelist>
+   <rule: Edgelist>	( <[Edge]> \; )+
+   <rule: Edge>		<[Nodename]>+ % (?:\-\>)
+   <token: Nodename>	[a-zA-Z][a-zA-Z0-9\_]*
+}xms;
+
+my $frame_filename = $opts{k};
+if ( ! defined($frame_filename) ) {
+    die "expecting -k <frame file> option";
+}
+
+my $frame_file;
+if ( $frame_filename eq "-" ) {
+    # Open STDIN
+    open $frame_file, "<-";
+} else {
+    open $frame_file, "<", $frame_filename
+	or die "failed to open $frame_filename for reading: $!";
+}
+
+my $frame_textcontent = do { local $/ = undef; <$frame_file>; };
+
+unless ( $frame_textcontent =~ $frame_parser ) {
+    die "frame failed to parse";
+}
+
+do {
+    die "this is impossible"
+	unless defined($/{Frame}->{Edgelist}->{Edge}) && ref($/{Frame}->{Edgelist}->{Edge}) eq "ARRAY";
+    foreach my $e ( @{$/{Frame}->{Edgelist}->{Edge}} ) {
+	die "this is impossible"
+	    unless defined($e->{Nodename}) && ref($e->{Nodename}) eq "ARRAY";
+	my $pn;
+	foreach my $n ( @{$e->{Nodename}} ) {
+	    my $nodename = $n;
+	    die "this is impossible" unless scalar(@node_names) == $nbnodes;
+	    if ( ! defined($node_nums{$nodename}) ) {
+		# Allocate a new node:
+		push @node_names, $nodename;
+		$node_nums{$nodename} = $nbnodes;
+		$nbnodes++;
+	    }
+	    if ( defined($pn) ) {
+		# Add an edge:
+		die "this is impossible" unless defined($node_nums{$pn});
+		push @frame_edges, [ $node_nums{$pn}, $node_nums{$n} ];
+	    }
+	    $pn = $n;
+	}
+    }
+};
+
+die "frame should have at least one node" unless $nbnodes>=1;
 
 ## PARSING THE FORMULA:
-
-use Regexp::Grammars;
 
 my $nbvariables = 0;
 my @variable_names;
@@ -142,6 +192,7 @@ sub parsetree_to_formula {
 	if ( defined($variable_nums{$varname}) ) {
 	    return [ VARIABLE, $variable_nums{$varname} ];
 	} else {
+	    # Allocate a new variable:
 	    push @variable_names, $varname;
 	    $variable_nums{$varname} = $nbvariables;
 	    $nbvariables++;
@@ -162,6 +213,8 @@ unless ( $input_formula =~ $formula_parser ) {
 }
 
 my $global_formula = parsetree_to_formula("Expr", \%/);
+
+## CONVERTING A FORMULA TO TEXT:
 
 sub formula_text {
     # Convert a formula to (Unicode!) text.  Note that this is not
