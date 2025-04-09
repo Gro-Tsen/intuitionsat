@@ -5,6 +5,9 @@
 
 # Command line arguments are:
 # -f <formula>: the formula to test
+# -v: verbose
+# -q: quiet (suppress all output)
+# -S <filename>: write the SAT problem to this file (rather than a temp file)
 
 use utf8;
 use strict;
@@ -30,7 +33,11 @@ binmode STDERR, ":utf8";
 
 @ARGV = map { decode_utf8($_, 1) } @ARGV;
 my %opts;
-getopts("f:", \%opts);
+getopts("f:vqS:", \%opts);
+
+my $verbose = $opts{v};
+my $quiet = $opts{q};
+my $outsatfilename = $opts{S};
 
 ## THIS IS THE FRAME:
 
@@ -215,7 +222,8 @@ sub formula_text {
     }
 }
 
-printf STDERR "Input formula parsed as: %s\n", formula_text($global_formula);
+printf STDERR "Input formula parsed as: %s\n", formula_text($global_formula)
+    if $verbose;
 
 ## CREATING THE SAT PROBLEM:
 
@@ -464,36 +472,49 @@ allocate_formula_clauses($global_formula);
 
 ## RUN THE SAT-SOLVER:
 
-my $tmpf = File::Temp->new(SUFFIX=>".cnf")
-    or die "failed to create temp file";
+my $outsatfile;
 
-printf STDERR "Writing SAT problem to %s\n", $tmpf->filename;
+if ( defined($outsatfilename) ) {
+    open $outsatfile, ">", $outsatfilename
+	or die "failed to open $outsatfilename for writing: $!";
+} else {
+    $outsatfile = File::Temp->new(SUFFIX=>".cnf")
+	or die "failed to create temp file";
+    $outsatfilename = $outsatfile->filename;
+}
 
-binmode $tmpf, ":utf8";
-printf $tmpf "p cnf %d %d\n", scalar(@satvars)-1, scalar(@clauses);
+printf STDERR "Writing SAT problem to %s\n", $outsatfilename
+    if $verbose;
+
+binmode $outsatfile, ":utf8";
+printf $outsatfile "p cnf %d %d\n", scalar(@satvars)-1, scalar(@clauses);
 
 for ( my $j=1 ; $j<scalar(@satvars) ; $j++) {
     die "this is impossible" unless $satvars[$j]->[0] == $j;
-    printf $tmpf "c variable %d expresses %s at node %s\n", $j, $satvars[$j]->[1], $node_names[$satvars[$j]->[2]];
+    printf $outsatfile "c variable %d expresses %s at node %s\n", $j, $satvars[$j]->[1], $node_names[$satvars[$j]->[2]];
 }
 
 for ( my $c=0 ; $c<scalar(@clauses) ; $c++ ) {
-    printf $tmpf "c %s\n", $clauses_comments[$c] if defined($clauses_comments[$c]);
-    print $tmpf join(" ", @{$clauses[$c]}), " 0\n";
+    printf $outsatfile "c %s\n", $clauses_comments[$c] if defined($clauses_comments[$c]);
+    print $outsatfile join(" ", @{$clauses[$c]}), " 0\n";
 }
 
-close $tmpf;
+close $outsatfile;
 
-open my $satsolver, "-|", "cryptominisat", "--verb", "0", $tmpf->filename
+printf STDERR "Running SAT-solver on %s\n", $outsatfilename
+    if $verbose;
+
+open my $satsolver, "-|", "cryptominisat", "--verb", "0", $outsatfilename
     or die "failed to run cryptominisat";
 
 my $answerline = <$satsolver>;
 
 if ( $answerline =~ /^s UNSATISFIABLE/ ) {
-    print "valid\n";
+    print "valid\n" unless $quiet;
     exit 0;
-} else {
-    print "invalid\n";
+} elsif ( $answerline =~ /^s SATISFIABLE/ ) {
+    print "invalid\n" unless $quiet;
+    exit 1 if $quiet;
     my @solution_values;
   SAT_ANSWER_LINE:
     while ( <$satsolver> ) {
@@ -532,4 +553,6 @@ if ( $answerline =~ /^s UNSATISFIABLE/ ) {
     }
     print "\n";
     exit 1;
+} else {
+    die "unexpected output from SAT-solver";
 }
