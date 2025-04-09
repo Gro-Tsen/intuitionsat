@@ -81,7 +81,7 @@ sub formula_text {
     # internally to avoid useless reduplication of SAT problem
     # variables.
     my $formula = shift;
-    my $priority = shift // 0;  # At which priority to prenthesize.
+    my $priority = shift // 0;  # At which priority to parenthesize.
     die "not a formula" unless ref($formula) eq "ARRAY";
     if ( $formula->[0] == VARIABLE ) {
 	die "not a formula" unless scalar(@{$formula}) == 2;
@@ -119,7 +119,7 @@ sub formula_text {
 	$s .= "(" if $fence;
 	$s .= formula_text($formula->[1], 1);
 	$s .= "⇒";
-	$s .= formula_text($formula->[2], 2);
+	$s .= formula_text($formula->[2], 0);
 	$s .= ")" if $fence;
 	return $s;
     } elsif ( $formula->[0] == LOGICAL_NOT ) {
