@@ -1,0 +1,1 @@
+for file in *.dot ; do dot -Tsvg -G'rankdir=BT' ${file} > ${file%.dot}.svg ; done

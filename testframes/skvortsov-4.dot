@@ -1,0 +1,5 @@
+digraph frame4 {
+	u0 -> u2 -> u4;  u2 -> u5;
+	u0 -> u1 -> u5;  u1 -> u4;
+	u0 -> u3 -> u6;  u3 -> u5;
+}
