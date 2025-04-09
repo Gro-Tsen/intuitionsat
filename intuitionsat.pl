@@ -10,6 +10,7 @@ use utf8;
 use strict;
 use warnings;
 use Encode qw(decode_utf8);
+use File::Temp;
 
 use Getopt::Std;
 
@@ -461,16 +462,74 @@ sub allocate_formula_clauses {
 allocate_global_clause;
 allocate_formula_clauses($global_formula);
 
-## We now emit the SAT problem:
+## RUN THE SAT-SOLVER:
 
-printf "p cnf %d %d\n", scalar(@satvars), scalar(@clauses);
+my $tmpf = File::Temp->new(SUFFIX=>".cnf")
+    or die "failed to create temp file";
+
+printf STDERR "Writing SAT problem to %s\n", $tmpf->filename;
+
+binmode $tmpf, ":utf8";
+printf $tmpf "p cnf %d %d\n", scalar(@satvars)-1, scalar(@clauses);
 
 for ( my $j=1 ; $j<scalar(@satvars) ; $j++) {
     die "this is impossible" unless $satvars[$j]->[0] == $j;
-    printf "c variable %d expresses %s at node %s\n", $j, $satvars[$j]->[1], $node_names[$satvars[$j]->[2]];
+    printf $tmpf "c variable %d expresses %s at node %s\n", $j, $satvars[$j]->[1], $node_names[$satvars[$j]->[2]];
 }
 
 for ( my $c=0 ; $c<scalar(@clauses) ; $c++ ) {
-    printf "c %s\n", $clauses_comments[$c] if defined($clauses_comments[$c]);
-    print join(" ", @{$clauses[$c]}), " 0\n";
+    printf $tmpf "c %s\n", $clauses_comments[$c] if defined($clauses_comments[$c]);
+    print $tmpf join(" ", @{$clauses[$c]}), " 0\n";
+}
+
+close $tmpf;
+
+open my $satsolver, "-|", "cryptominisat", "--verb", "0", $tmpf->filename
+    or die "failed to run cryptominisat";
+
+my $answerline = <$satsolver>;
+
+if ( $answerline =~ /^s UNSATISFIABLE/ ) {
+    print "valid\n";
+    exit 0;
+} else {
+    print "invalid\n";
+    my @solution_values;
+  SAT_ANSWER_LINE:
+    while ( <$satsolver> ) {
+	if ( $_ =~ /^v\s+(.*)/ ) {
+	    my @lst = split " ", $1;
+	    foreach my $k ( @lst ) {
+		die "strange output from SAT-solver"
+		    unless $k =~ m/\-?[0-9]+/;
+		last SAT_ANSWER_LINE if $k==0;
+		my $b = $k>=0;
+		$k = -$k unless $b;
+		die "strange value $k from SAT-solver"
+		    if $k>=scalar(@satvars);
+		$solution_values[$k] = $b;
+	    }
+	}
+    }
+    for ( my $r=0 ; $r<scalar(@variable_satvars) ; $r++ ) {
+	if ( defined($variable_satvars[$r]) ) {
+	    printf "%s:", $variable_names[$r];
+	    for ( my $nd=0 ; $nd<$nbnodes ; $nd++ ) {
+		my $k = $variable_satvars[$r][$nd];
+		die "missing variable $k value from SAT-solver"
+		    unless defined($solution_values[$k]);
+		printf " %s%s", ($solution_values[$k]?"":"!"), $node_names[$nd];
+	    }
+	    print "\n";
+	}
+    }
+    printf "%s:", $global_formula_text;
+    for ( my $nd=0 ; $nd<$nbnodes ; $nd++ ) {
+	my $k = $subformula_satvars{$global_formula_text}[$nd];
+	die "missing variable $k value from SAT-solver"
+	    unless defined($solution_values[$k]);
+	printf " %s%s", ($solution_values[$k]?"":"!"), $node_names[$nd];
+    }
+    print "\n";
+    exit 1;
 }
