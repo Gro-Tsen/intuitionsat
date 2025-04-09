@@ -3,9 +3,15 @@
 # Use a SAT-solver to decide whether an intuitionistic formula holds
 # in a given Kripke frame.  (Work in progress.)
 
+# Command line arguments are:
+# -f <formula>: the formula to test
+
 use utf8;
 use strict;
 use warnings;
+use Encode qw(decode_utf8);
+
+use Getopt::Std;
 
 use constant {
     VARIABLE => 0,
@@ -21,6 +27,10 @@ binmode STDIN, ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
+@ARGV = map { decode_utf8($_, 1) } @ARGV;
+my %opts;
+getopts("f:", \%opts);
+
 ## THIS IS THE FRAME:
 
 my $nbnodes = 5;
@@ -35,45 +45,115 @@ my @frame_edges = (
 #     [0,1], [0,2], [0,3], [2,4]
 # );
 
-## THIS IS THE FORMULA:
+## PARSING THE FORMULA:
 
-my $nbvariables = 3;
-my @variable_names = ( "p1", "p2", "p3" );
-my $formula = [
-    LOGICAL_IMP,
-    [ LOGICAL_AND,
-      [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 1], [VARIABLE, 2] ] ],
-      [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 0], [VARIABLE, 2] ] ],
-      [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 0], [VARIABLE, 1] ] ],
-      [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 0 ] ],
-	[ LOGICAL_OR, [VARIABLE, 1], [VARIABLE, 2] ] ],
-      [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 1 ] ],
-	[ LOGICAL_OR, [VARIABLE, 0], [VARIABLE, 2] ] ],
-      [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 2 ] ],
-	[ LOGICAL_OR, [VARIABLE, 0], [VARIABLE, 1] ] ] ],
-    [ LOGICAL_OR, [VARIABLE, 0], [VARIABLE, 1], [VARIABLE, 2] ]
-];
+use Regexp::Grammars;
 
-# my $nbvariables = 4;
-# my @variable_names = ( "p1", "p2", "p3", "q" );
-# my $formula = [
-#     LOGICAL_IMP,
-#     [ LOGICAL_AND,
-#       [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 1], [VARIABLE, 2] ] ],
-#       [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 0], [VARIABLE, 2] ] ],
-#       [ LOGICAL_NOT, [ LOGICAL_AND, [VARIABLE, 0], [VARIABLE, 1] ] ],
-#       [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 0 ] ],
-# 	[ LOGICAL_OR, [ LOGICAL_NOT, [ VARIABLE, 3 ] ],
-# 	  [ LOGICAL_NOT, [ LOGICAL_NOT, [ VARIABLE, 3 ] ] ] ] ],
-#       [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 1 ] ],
-# 	[ LOGICAL_OR, [ LOGICAL_NOT, [ VARIABLE, 3 ] ],
-# 	  [ LOGICAL_NOT, [ LOGICAL_NOT, [ VARIABLE, 3 ] ] ] ] ],
-#       [ LOGICAL_IMP, [ LOGICAL_NOT, [ VARIABLE, 2 ] ],
-# 	[ LOGICAL_OR, [ LOGICAL_NOT, [ VARIABLE, 3 ] ],
-# 	  [ LOGICAL_NOT, [ LOGICAL_NOT, [ VARIABLE, 3 ] ] ] ] ] ],
-#     [ LOGICAL_OR, [ LOGICAL_NOT, [ VARIABLE, 3 ] ],
-#       [ LOGICAL_NOT, [ LOGICAL_NOT, [ VARIABLE, 3 ] ] ] ]
-# ];
+my $nbvariables = 0;
+my @variable_names;
+my %variable_nums;
+
+my $formula_parser = qr{
+   ^<Expr>$
+   <rule: Expr>		<OrExpr> ( (?:⇒|\=\>|→|\-\>) <ImpExpr=Expr> )?
+   <rule: OrExpr>	<[AndExpr]>+ % (?:∨|\\\/|\|)
+   <rule: AndExpr>	<[NotExpr]>+ % (?:∧|\/\\|\&)
+   <rule: NotExpr>	<Atom> | (?:¬|\~) <NotExpr>
+   <rule: Atom>		<Variable> | <TrueExpr> | <FalseExpr> | \( <ParenExpr=Expr> \)
+   <rule: TrueExpr>	(?:⊤|\_True|1)
+   <rule: FalseExpr>	(?:⊥|\_False|0)
+   <token: Variable>	[a-zA-Z][a-zA-Z0-9\_]*
+}xms;
+
+sub parsetree_to_formula {
+    # Convert a parse tree to a formula.  Takes a rule name and a hash
+    # as returned by $formula_parser and returns the array
+    # representation of this formula.  Calls itself recursively.  Call
+    # this with "Expr" as first argument for the overall grammar.
+    # Variables are allocated as they are encountered.
+    my $u = shift;  # The grammar rule matched at the top level
+    my $r = shift;  # Parsing result for this grammar rule
+    if ( $u eq "Expr" ) {
+	if ( defined($r->{Expr}) ) {
+	    # Be liberal: allow for calling on $r or $r->{Expr} indifferently.
+	    return parsetree_to_formula("Expr", $r->{Expr});
+	}
+	die "this is impossible" unless defined($r->{OrExpr});
+	if ( defined($r->{ImpExpr}) ) {
+	    return [ LOGICAL_IMP, parsetree_to_formula("OrExpr", $r->{OrExpr}),
+		     parsetree_to_formula("Expr", $r->{ImpExpr}) ];
+	} else {
+	    return parsetree_to_formula("OrExpr", $r->{OrExpr});
+	}
+    } elsif ( $u eq "OrExpr" ) {
+	die "this is impossible"
+	    unless defined($r->{AndExpr}) && ref($r->{AndExpr}) eq "ARRAY";
+	if ( scalar(@{$r->{AndExpr}}) == 1 ) {
+	    return parsetree_to_formula("AndExpr", $r->{AndExpr}->[0]);
+	} else {
+	    my @f = ( LOGICAL_OR );
+	    foreach my $rr ( @{$r->{AndExpr}} ) {
+		push @f, parsetree_to_formula("AndExpr", $rr);
+	    }
+	    return \@f;
+	}
+    } elsif ( $u eq "AndExpr" ) {
+	die "this is impossible"
+	    unless defined($r->{NotExpr}) && ref($r->{NotExpr}) eq "ARRAY";
+	if ( scalar(@{$r->{NotExpr}}) == 1 ) {
+	    return parsetree_to_formula("NotExpr", $r->{NotExpr}->[0]);
+	} else {
+	    my @f = ( LOGICAL_AND );
+	    foreach my $rr ( @{$r->{NotExpr}} ) {
+		push @f, parsetree_to_formula("NotExpr", $rr);
+	    }
+	    return \@f;
+	}
+    } elsif ( $u eq "NotExpr" ) {
+	die "this is impossible" unless defined($r->{Atom}) || defined($r->{NotExpr});
+	die "this is impossible" if defined($r->{Atom}) && defined($r->{NotExpr});
+	if ( defined($r->{NotExpr}) ) {
+	    return [ LOGICAL_NOT, parsetree_to_formula("NotExpr", $r->{NotExpr}) ];
+	} else {
+	    return parsetree_to_formula("Atom", $r->{Atom});
+	}
+    } elsif ( $u eq "Atom" ) {
+	die "this is impossible" unless defined($r->{Variable}) + defined($r->{TrueExpr}) + defined($r->{FalseExpr}) + defined($r->{ParenExpr}) == 1;
+	if ( defined($r->{ParenExpr}) ) {
+	    return parsetree_to_formula("Expr", $r->{ParenExpr});
+	} elsif ( defined($r->{TrueExpr}) ) {
+	    return [ LOGICAL_TRUE ];
+	} elsif ( defined($r->{FalseExpr}) ) {
+	    return [ LOGICAL_FALSE ];
+	} else {
+	    return parsetree_to_formula("Variable", $r->{Variable});
+	}
+    } elsif ( $u eq "Variable" ) {
+	my $varname = $r;
+	die "this is impossible" unless scalar(@variable_names) == $nbvariables;
+	if ( defined($variable_nums{$varname}) ) {
+	    return [ VARIABLE, $variable_nums{$varname} ];
+	} else {
+	    push @variable_names, $varname;
+	    $variable_nums{$varname} = $nbvariables;
+	    $nbvariables++;
+	    return [ VARIABLE, $variable_nums{$varname} ];
+	}
+    } else {
+	die "this is impossible";
+    }
+}
+
+my $input_formula = $opts{f};
+if ( ! defined($input_formula) ) {
+    die "expecting -f <formula> option";
+}
+
+unless ( $input_formula =~ $formula_parser ) {
+    die "formula failed to parse";
+}
+
+my $global_formula = parsetree_to_formula("Expr", \%/);
 
 sub formula_text {
     # Convert a formula to (Unicode!) text.  Note that this is not
@@ -133,6 +213,10 @@ sub formula_text {
 	return $s;
     }
 }
+
+printf STDERR "Input formula parsed as: %s\n", formula_text($global_formula);
+
+## CREATING THE SAT PROBLEM:
 
 # List of SAT problem variables: each one is a ref to an array of 3 items:
 # ->[0] is the index back in the @satvars array itself.
@@ -197,9 +281,9 @@ sub allocate_formula_variables {
     }
 }
 
-allocate_formula_variables($formula);
+allocate_formula_variables($global_formula);
 
-my $global_formula_text = formula_text($formula);
+my $global_formula_text = formula_text($global_formula);
 die "this is impossible" unless defined($subformula_satvars{$global_formula_text});
 
 # List of SAT problem clauses: each one is a ref to an array of
@@ -375,7 +459,7 @@ sub allocate_formula_clauses {
 }
 
 allocate_global_clause;
-allocate_formula_clauses($formula);
+allocate_formula_clauses($global_formula);
 
 ## We now emit the SAT problem:
 
