@@ -563,10 +563,10 @@ open my $satsolver, "-|", "cryptominisat", "--verb", "0", $outsatfilename
 my $answerline = <$satsolver>;
 
 if ( $answerline =~ /^s UNSATISFIABLE/ ) {
-    print "valid\n" unless $quiet;
+    print "formula holds\n" unless $quiet;
     exit 0;
 } elsif ( $answerline =~ /^s SATISFIABLE/ ) {
-    print "invalid\n" unless $quiet;
+    print "formula fails\n" unless $quiet;
     exit 1 if $quiet;
     my @solution_values;
   SAT_ANSWER_LINE:
