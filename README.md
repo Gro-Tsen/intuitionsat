@@ -27,27 +27,29 @@ check satisfiability.
 
 - **CryptoMiniSat**  
   (Packaged as `cryptominisat` on Debian/Ubuntu)  
-  *The SAT solver used to solve the generated SAT problem*
+  *The SAT solver used to solve the generated SAT problem*  
+  (But another SAT solver can be used instead through the `-e` option.)
 
 ---
 
 ## Usage
 
-Simply make the script executable and run it:
+This program is just a single Perl script: simply make the script
+executable (once) and run it:
 
 ```
 chmod +x intuitionsat.pl
 ./intuitionsat.pl [options]
 ```
 
+You may need to adjust the shebang line (`#!/usr/local/bin/perl -w`)
+at the top of the script to match the location of Perl on your system.
+
 Alternatively:
 
 ```
 perl intuitionsat.pl [options]
 ```
-
-You may need to adjust the shebang line (`#!/usr/local/bin/perl -w`)
-at the top of the script to match the location of Perl on your system.
 
 ---
 
@@ -139,12 +141,12 @@ Unicode symbols for display.  Input can use either **Unicode** or
 
 | Logical Operator | Unicode Symbol | ASCII Alternatives |
 |------------------|----------------|--------------------|
-| Conjunction      | ∧ (U+2227)     | `/\` or `&`        |
-| Disjunction      | ∨ (U+2228)     | `\/` or `\|`       |
-| Implication      | ⇒ (U+21D2)     | `=>` or `->`       |
-| Negation         | ¬ (U+00AC)     | `~`                |
-| Truth            | ⊤ (U+22A4)     | `1` or `_True`     |
-| Falsehood        | ⊥ (U+22A5)     | `0` or `_False`    |
+| Conjunction      | `∧` (U+2227)     | `/\` or `&`        |
+| Disjunction      | `∨` (U+2228)     | `\/` or `\|`       |
+| Implication      | `⇒` (U+21D2) or `→` (U+2192)  | `=>` or `->`       |
+| Negation         | `¬` (U+00AC)     | `~`                |
+| Truth            | `⊤` (U+22A4)     | `1` or `_True`     |
+| Falsehood        | `⊥` (U+22A5)     | `0` or `_False`    |
 
 **Operator priority** is: negation (highest priority) > conjunction >
 disjunction > implication.  For example, `p∨q∧r` is interpreted as
