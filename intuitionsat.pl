@@ -103,7 +103,7 @@ my @frame_edges;
 
 my $frame_parser = qr{
    ^<Frame>$
-   <rule: Frame>	digraph [a-zA-Z][a-zA-Z0-9\_]* \{ <Edgelist> \} | <Edgelist>
+   <rule: Frame>	digraph (?:[a-zA-Z][a-zA-Z0-9\_]*) \{ <Edgelist> \} | <Edgelist>
    <rule: Edgelist>	( <[Edge]> \; )+
    <rule: Edge>		<[Nodename]>+ % (?:\-\>)
    <token: Nodename>	[a-zA-Z][a-zA-Z0-9\_]*

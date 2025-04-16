@@ -1,0 +1,3 @@
+digraph easy4 {
+	u -> v1;  u -> v2;
+}

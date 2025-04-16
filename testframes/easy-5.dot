@@ -1,0 +1,4 @@
+digraph easy5 {
+	u -> v1;  u -> v2;
+	v1 -> w;  v2 -> w;
+}
