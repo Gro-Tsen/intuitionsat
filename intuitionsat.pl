@@ -5,6 +5,7 @@
 
 # Command line arguments are:
 # -k <frame file>: the frame to use
+# -K <frame description>: enter frame directly on command line
 # -f <formula>: the formula to test
 # -v: verbose
 # -q: quiet (suppress all output)
@@ -36,13 +37,13 @@ binmode STDERR, ":utf8";
 
 @ARGV = map { decode_utf8($_, 1) } @ARGV;
 my %opts;
-getopts("k:f:vqS:", \%opts);
+getopts("k:K:f:vqS:", \%opts);
 
 my $verbose = $opts{v};
 my $quiet = $opts{q};
 my $outsatfilename = $opts{S};
 
-## PARSING THE FRAME:
+## READING AND PARSING THE FRAME:
 
 my $nbnodes = 0;
 my @node_names;
@@ -57,27 +58,35 @@ my $frame_parser = qr{
    <token: Nodename>	[a-zA-Z][a-zA-Z0-9\_]*
 }xms;
 
+my $frame_textcontent = $opts{K};
 my $frame_filename = $opts{k};
-if ( ! defined($frame_filename) ) {
-    die "expecting -k <frame file> option";
+
+if ( ! defined($frame_filename) && ! defined($frame_textcontent) ) {
+    die "expecting -k <frame file> or -K <frame description> option";
+}
+if ( defined($frame_filename) && defined($frame_textcontent) ) {
+    die "-k and -K options are incompatible";
 }
 
 my $frame_file;
-if ( $frame_filename eq "-" ) {
+if ( defined($frame_filename) && $frame_filename eq "-" ) {
     # Open STDIN
     open $frame_file, "<-";
-} else {
+} elsif ( defined($frame_filename) ) {
     open $frame_file, "<", $frame_filename
 	or die "failed to open $frame_filename for reading: $!";
 }
 
-my $frame_textcontent = do { local $/ = undef; <$frame_file>; };
+unless ( defined($frame_textcontent) ) {
+    $frame_textcontent = do { local $/ = undef; <$frame_file>; };
+}
 
 unless ( $frame_textcontent =~ $frame_parser ) {
     die "frame failed to parse";
 }
 
 do {
+    # Convert parse tree to frame.
     die "this is impossible"
 	unless defined($/{Frame}->{Edgelist}->{Edge}) && ref($/{Frame}->{Edgelist}->{Edge}) eq "ARRAY";
     foreach my $e ( @{$/{Frame}->{Edgelist}->{Edge}} ) {
