@@ -68,7 +68,8 @@ at the top of the script to match the location of Perl on your system.
 | `-f <formula>`   | The formula to check |
 | `-v`             | Verbose output |
 | `-q`             | Quiet mode (suppress all output) |
-| `-S <filename>`  | Write SAT problem to this file (instead of a temporary file) |
+| `-S <filename>`  | Save SAT problem to this file (instead of a temporary file) |
+| `-e <command line>`  | Call this SAT solver (instead of `cryptominisat --verb 0`) |
 
 ---
 

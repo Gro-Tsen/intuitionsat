@@ -35,7 +35,8 @@
 ## -f <formula>: the formula to test
 ## -v: verbose
 ## -q: quiet (suppress all output)
-## -S <filename>: write the SAT problem to this file (rather than a temp file)
+## -S <filename>: save the SAT problem to this file (rather than a temp file)
+## -e <SAT-solver command line>: call this instead of "cryptominisat --verb 0"
 
 ## Return value is 0 if the formula holds, 1 if it fails, some other
 ## code in case of error.
@@ -86,11 +87,12 @@ binmode STDERR, ":utf8";
 
 @ARGV = map { decode_utf8($_, 1) } @ARGV;
 my %opts;
-getopts("k:K:f:vqS:", \%opts);
+getopts("k:K:f:vqS:e:", \%opts);
 
 my $verbose = $opts{v};
 my $quiet = $opts{q};
 my $outsatfilename = $opts{S};
+my $satsolvercmdline = $opts{e} // "cryptominisat --verb 0";
 
 ## READING AND PARSING THE FRAME:
 
@@ -615,7 +617,9 @@ close $outsatfile;
 printf STDERR "Running SAT-solver on %s\n", $outsatfilename
     if $verbose;
 
-open my $satsolver, "-|", "cryptominisat", "--verb", "0", $outsatfilename
+my @satsolvercmdline = split " ", $satsolvercmdline;
+
+open my $satsolver, "-|", (@satsolvercmdline, $outsatfilename)
     or die "failed to run cryptominisat";
 
 my $answerline = <$satsolver>;
