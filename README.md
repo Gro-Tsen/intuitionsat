@@ -162,3 +162,22 @@ Unicode symbols for display.  Input can use either **Unicode** or
 disjunction > implication.  For example, `p∨q∧r` is interpreted as
 `p∨(q∧r)`, and `p∨q⇒r` is interpreted as `(p∨q)⇒r`.  The implication
 operator associates rightwards, that is, `p⇒q⇒r` is read as `p⇒(q⇒r)`.
+
+---
+
+## Generating a LaTeX table
+
+The adjacent Perl program `make-table.pl` generates a LaTeX file that
+summarizes the validity of a set of intuitionistic formulas over a set
+of Kripke frames, by repeatedly calling `intuitionsat.pl` to decide
+each validity in turn.  This program requires the `dot` program (from
+Graphviz) in order to generate a PDF version of each frame.  It
+produces a TeX file on the standard output that can then be compiled
+using pdfLaTeX.
+
+This program is more a quick-and-dirty hack than a serious utility.
+Tune it to your tastes before use.  As such, it was used to generate
+the PDF file [found
+here](https://gist.github.com/Gro-Tsen/f76316249c31240bf8857eebadf027f9#file-table-pdf)
+from the formulas and frames found in the `testforms/` and
+`testframes/` directories accompanying the program.
