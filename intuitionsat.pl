@@ -92,7 +92,7 @@ getopts("k:K:f:vqS:e:", \%opts);
 my $verbose = $opts{v};
 my $quiet = $opts{q};
 my $outsatfilename = $opts{S};
-my $satsolvercmdline = $opts{e} // "cryptominisat --verb 0";
+my $satsolvercmdline = $opts{e} // $ENV{SATCMD} // "cryptominisat --verb 0";
 
 ## READING AND PARSING THE FRAME:
 
@@ -617,7 +617,12 @@ close $outsatfile;
 printf STDERR "Running SAT-solver on %s\n", $outsatfilename
     if $verbose;
 
-my @satsolvercmdline = split " ", $satsolvercmdline;
+# Note: we use "sh -c" to do parsing/splitting of $satsolvercmdline
+# for us.  But we don't want to assume $outsatfilename is shell-safe,
+# so we pass it as argument $1 (note that the first argument after "sh
+# -c" is $0, not $1, so we use a dummy "sh" here).  Thanks to
+# @Jilcaesel for suggesting this neat trick.
+my @satsolvercmdline = ( "sh", "-c", "$satsolvercmdline \"\$1\"", "sh" );
 
 open my $satsolver, "-|", (@satsolvercmdline, $outsatfilename)
     or die "failed to run cryptominisat";
