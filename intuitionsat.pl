@@ -627,7 +627,12 @@ my @satsolvercmdline = ( "sh", "-c", "$satsolvercmdline \"\$1\"", "sh" );
 open my $satsolver, "-|", (@satsolvercmdline, $outsatfilename)
     or die "failed to run cryptominisat";
 
-my $answerline = <$satsolver>;
+my $answerline;
+
+do {
+    $answerline = <$satsolver>;
+    die "unexpected EOF from SAT-solver" unless defined($answerline);
+} while ( $answerline =~ /^c\s/ );
 
 if ( $answerline =~ /^s UNSATISFIABLE/ ) {
     print "formula holds\n" unless $quiet;
@@ -638,6 +643,7 @@ if ( $answerline =~ /^s UNSATISFIABLE/ ) {
     my @solution_values;
   SAT_ANSWER_LINE:
     while ( <$satsolver> ) {
+	next SAT_ANSWER_LINE if $_ =~ /^c\s/;
 	if ( $_ =~ /^v\s+(.*)/ ) {
 	    my @lst = split " ", $1;
 	    foreach my $k ( @lst ) {
@@ -650,6 +656,8 @@ if ( $answerline =~ /^s UNSATISFIABLE/ ) {
 		    if $k>=scalar(@satvars);
 		$solution_values[$k] = $b;
 	    }
+	} else {
+	    die "unexpected output from SAT-solver";
 	}
     }
     for ( my $r=0 ; $r<scalar(@variable_satvars) ; $r++ ) {
