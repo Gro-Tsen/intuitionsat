@@ -67,7 +67,7 @@ at the top of the script to match the location of Perl on your system.
 | `-K <string>`    | Provide Kripke frame directly as a string |
 | `-f <formula>`   | The formula to check |
 | `-v`             | Verbose output |
-| `-q`             | Quiet mode (suppress most output) |
+| `-q`             | Quiet mode (suppress all output) |
 | `-S <filename>`  | Write SAT problem to this file (instead of a temporary file) |
 
 ---
@@ -80,7 +80,7 @@ at the top of the script to match the location of Perl on your system.
 
 ---
 
-## Example
+## Example use
 
 ```
 ./intuitionsat.pl -K 'u->v;' -f 'p\/~p'
@@ -99,7 +99,7 @@ not at node `u`.
 
 ---
 
-## Frame Syntax
+## Frame syntax
 
 Frame descriptions use a **simplified Graphviz dot syntax**. For example:
 
@@ -122,15 +122,19 @@ digraph test {
 }
 ```
 
+A frame consisting of a **single node** can be created by the syntax
+`u;` (no arrow).  This is useful for testing the validity of a
+**classical** propositional formula.
+
 ---
 
-## Formula Syntax
+## Formula syntax
 
 Formulas follow **standard intuitionistic propositional logic** with
 Unicode symbols for display.  Input can use either **Unicode** or
 **ASCII** versions of logical operators.
 
-### Accepted Symbols
+### Accepted symbols
 
 | Logical Operator | Unicode Symbol | ASCII Alternatives |
 |------------------|----------------|--------------------|
@@ -141,7 +145,7 @@ Unicode symbols for display.  Input can use either **Unicode** or
 | Truth            | ⊤ (U+22A4)     | `1` or `_True`     |
 | Falsehood        | ⊥ (U+22A5)     | `0` or `_False`    |
 
-Operator priority is: negation (highest priority) > conjunction >
+**Operator priority** is: negation (highest priority) > conjunction >
 disjunction > implication.  For example, `p∨q∧r` is interpreted as
 `p∨(q∧r)`, and `p∨q⇒r` is interpreted as `(p∨q)⇒r`.  The implication
 operator associates rightwards, that is, `p⇒q⇒r` is read as `p⇒(q⇒r)`.
