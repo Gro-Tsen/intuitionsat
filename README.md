@@ -40,7 +40,7 @@ This program is just a single Perl script: simply run it as follows:
 ./intuitionsat.pl [options]
 ```
 
-You may need to adjust the shebang line (`#!/usr/local/bin/perl -w`)
+You may need to adjust the shebang line (`#! /usr/local/bin/perl -w`)
 at the top of the script to match the location of Perl on your system.
 You may also need to make sure that it is executable (`chmod +x
 intuitionsat.pl`).
