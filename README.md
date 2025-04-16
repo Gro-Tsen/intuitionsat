@@ -34,16 +34,16 @@ check satisfiability.
 
 ## Usage
 
-This program is just a single Perl script: simply make the script
-executable (once) and run it:
+This program is just a single Perl script: simply run it as follows:
 
 ```
-chmod +x intuitionsat.pl
 ./intuitionsat.pl [options]
 ```
 
 You may need to adjust the shebang line (`#!/usr/local/bin/perl -w`)
 at the top of the script to match the location of Perl on your system.
+You may also need to make sure that it is executable (`chmod +x
+intuitionsat.pl`).
 
 Alternatively:
 
@@ -72,6 +72,16 @@ perl intuitionsat.pl [options]
 | `-q`             | Quiet mode (suppress all output) |
 | `-S <filename>`  | Save SAT problem to this file (instead of a temporary file) |
 | `-e <command line>`  | Call this SAT solver (instead of `cryptominisat --verb 0`) |
+
+These options also have long equivalents: `--framefile`, `--frame`,
+`--formula`, `--verbose`, `--quiet`, `--satfile` and `--satcmd`
+respectively.  The `--help` option (or `-h`) displays a summary of
+known options.
+
+The SAT solver command line can also be passed as the `SATCMD`
+environment variable (it is run through `sh -c` so be aware that it
+can interpret arbitrary shell commands).  Any SAT solver program
+supporting the DIMACS format should be fine, but I didn't check.
 
 ---
 
@@ -148,7 +158,7 @@ Unicode symbols for display.  Input can use either **Unicode** or
 | Truth            | `⊤` (U+22A4)     | `1` or `_True`     |
 | Falsehood        | `⊥` (U+22A5)     | `0` or `_False`    |
 
-**Operator priority** is: negation (highest priority) > conjunction >
+**Operator precedence** is: negation (highest priority) > conjunction >
 disjunction > implication.  For example, `p∨q∧r` is interpreted as
 `p∨(q∧r)`, and `p∨q⇒r` is interpreted as `(p∨q)⇒r`.  The implication
 operator associates rightwards, that is, `p⇒q⇒r` is read as `p⇒(q⇒r)`.

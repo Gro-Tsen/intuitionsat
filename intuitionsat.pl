@@ -67,7 +67,7 @@ use warnings;
 use Encode qw(decode_utf8);
 use File::Temp;
 
-use Getopt::Std;
+use Getopt::Long ":config" => "bundling";
 
 use constant {
     VARIABLE => 0,
@@ -85,9 +85,34 @@ binmode STDIN, ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-@ARGV = map { decode_utf8($_, 1) } @ARGV;
+## PARSING THE COMMAND LINE:
+
+sub usage {
+    print <<'__EOF__';
+Usage:	intuitionsat.pl [options]
+Recognized options are:
+	-k <frame file>: the frame to use
+	-K <frame description>: enter frame directly on command line
+	-f <formula>: the formula to test
+	-v: verbose
+	-q: quiet (suppress all output)
+	-S <filename>: save the SAT problem to this file (rather than a temp file)
+	-e <SAT-solver command line>: call this instead of "cryptominisat --verb 0"
+These options are equivalent to --framefile, --frame, --formula, --verbose,
+  --quiet, --satfile and --satcmd respectively.
+Also recognized is -h (or --help) to display this text.
+__EOF__
+    exit 0;
+}
+
+@ARGV = map { decode_utf8($_, 1) } @ARGV;  # Convert to Unicode!
 my %opts;
-getopts("k:K:f:vqS:e:", \%opts);
+GetOptions (\%opts,
+	    "k|framefile=s", "K|frame=s", "f|formula=s",
+	    "v|verbose", "q|quiet", "S|satfile=s", "e|satcmd=s",
+	    "help|h|?" => \&usage)
+    or die "wrong usage (try --help)";
+die "unexpected argument" unless scalar(@ARGV) == 0;
 
 my $verbose = $opts{v};
 my $quiet = $opts{q};
