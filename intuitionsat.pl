@@ -1,15 +1,64 @@
 #! /usr/local/bin/perl -w
 
-# Use a SAT-solver to decide whether an intuitionistic formula holds
-# in a given Kripke frame.  (Work in progress.)
+## intuitionsat.pl - Use a SAT-solver to decide whether an
+## intuitionistic propositional formula holds in a given Kripke frame.
 
-# Command line arguments are:
-# -k <frame file>: the frame to use
-# -K <frame description>: enter frame directly on command line
-# -f <formula>: the formula to test
-# -v: verbose
-# -q: quiet (suppress all output)
-# -S <filename>: write the SAT problem to this file (rather than a temp file)
+## This program written on 2025-04-08 by David A. Madore
+## <http://www.madore.org/~david/>
+
+## This version: 2025-04-16
+
+## CC0 1.0 Universal (see accompanying LICENSE file for legalese)
+
+## This program requires:
+##
+## * The Perl "Regexp::Grammars" module (packaged as
+##   "libregexp-grammars-perl" on Debian/Ubuntu), to parse the
+##   formula.
+##
+## * The SAT-solver "cryptominisat" to solve the SAT-problem (i.e., to
+##   do the actual work).
+
+## The program is just a single Perl executable: no compilation, you
+## just run it ("perl intuitionsat.pl" or simply "./intuitionsat.pl" -
+## but you may need to adjust your Perl interpreter's path on the very
+## first line if it's not /usr/local/bin/perl).
+
+## This program assumes that you have a Unicode terminal and all
+## input/output is done in UTF-8.  (Please.  This is 2025.)  The
+## formula can be input using ASCII characters, but it will always be
+## displayed using Unicode characters.
+
+## Regognized command line arguments are:
+## -k <frame file>: the frame to use
+## -K <frame description>: enter frame directly on command line
+## -f <formula>: the formula to test
+## -v: verbose
+## -q: quiet (suppress all output)
+## -S <filename>: write the SAT problem to this file (rather than a temp file)
+
+## Return value is 0 if the formula holds, 1 if it fails, some other
+## code in case of error.
+
+## Example use: ./intuitionsat.pl -K 'u->v;' -f 'p\/~p'
+## (Should return "formula fails" then "p: !u v" to indicate that a
+## counterexample is given by having p hold at node v but not at u.)
+
+## Frame syntax is a very simplified form of the graphviz digraph
+## syntax.  For example, 'u->v0->w0; u->v1->w1;' creates a frame with
+## five nodes, u,v0,w0,v1,w1 and the relation is the transitive
+## closure of the given oriented edges.
+
+## Formula syntax follows standard mathematical notation, using
+## Unicode characters U+2227 LOGICAL AND for conjunction, U+2228
+## LOGICAL OR for disjunction, U+21D2 RIGHTWARDS DOUBLE ARROW (but
+## U+2192 RIGHTWARDS ARROW is also accepted) for implication, and
+## U+00AC NOT SIGN for negation (also recognized are U+22A4 DOWN TACK
+## for truth and U+22A5 UP TACK for falsehood).  Accepted ASCII
+## alternatives are: "/\" or "&" for conjunction, "\/" or "|" for
+## disjunction, "=>" or "->" for implication, and "~" for negation
+## (also: "1" or "_True" for truth, and "0" or "_False" for
+## falsehood).
 
 use utf8;
 use strict;
@@ -532,7 +581,7 @@ sub allocate_formula_clauses {
 allocate_global_clause;
 allocate_formula_clauses($global_formula);
 
-## RUN THE SAT-SOLVER:
+## RUNNING THE SAT-SOLVER:
 
 my $outsatfile;
 
