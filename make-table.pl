@@ -47,6 +47,7 @@ my @forms = (
     "testforms/ceitin.form",
     "testforms/plisko-p3.form",
     "testforms/jankov-i3.form",
+    "testforms/jankov-k3.form",
     "testforms/anti-scott.form",
     "testforms/rose.form",
     "testforms/plisko-p.form",
