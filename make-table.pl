@@ -131,6 +131,8 @@ print <<'__EOF__';
 \setlength{\parindent}{0pt}
 __EOF__
 
+printf "\\textbf{%s:}\n\\par\n", "Satisfaction of some intuitionistic formulas for various Kripke frames";
+
 print "\\begin{supertabular}", ("{l|" . ("c" x scalar(@frames)) . "}"), "\n";
 
 for ( my $j=0 ; $j<scalar(@frames) ; $j++ ) {
