@@ -6,10 +6,23 @@
 use utf8;
 use strict;
 use warnings;
+use Getopt::Long ":config" => "bundling";
 
 binmode STDIN, ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
+
+my %opts;
+GetOptions (\%opts,
+	    "b|bw")
+    or die "wrong usage";
+die "unexpected argument" unless scalar(@ARGV) == 0;
+
+my $bw_mode = $opts{b};
+
+my @normal_colors = ("DarkRed", "Green");
+my @bw_colors     = ("lightgray", "black");
+my @colors = $bw_mode ? @bw_colors : @normal_colors;
 
 my @frames = (
     "testframes/basic-1.dot",
@@ -157,7 +170,7 @@ for ( my $i=0 ; $i<scalar(@forms) ; $i++ ) {
 	    die "intuitionsat.pl exited with return code $?";
 	}
 	# my $isvalid = rand() < 0.5;
-	printf "\&%s", ($isvalid ? "\\textcolor{Green}{\\cmark}" : "\\textcolor{DarkRed}{\\xmark}");
+	printf "\&%s", ($isvalid ? ("\\textcolor{".$colors[1]."}{\\cmark}") : ("\\textcolor{".$colors[0]."}{\\xmark}"));
     }
     print "\n";
     print "\\\\\n";
